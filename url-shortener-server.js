@@ -42,7 +42,7 @@ Meteor.methods({
       UrlShortener.collection.update(id, {$set: {path: newPath}});
 
       return {
-        path: newPath
+        path: UrlShortener.options.prefix + 's/' + newPath
       }
     }
 

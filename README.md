@@ -2,7 +2,9 @@
 
 I had to make a url shortener for an app recently and decided to turn it into a package! I hope you enjoy it.
 
-I've made a short video tutorial for adding this package to your app so feel to check that out [here](http://youtube.com) or you can follow the instructions below.
+I've made a short video tutorial for adding this package to your app so feel to check that out [here](https://www.youtube.com/watch?v=fcKAf-di-bA) or you can follow the instructions below.
+
+Here is the code from the example app in the video: https://github.com/ryanswapp/url-shortener-example
 
 ## Getting Started
 
@@ -12,29 +14,29 @@ Add the package:
 meteor add ryanswapp:url-shortener
 ```
 
-This package assumes you are using the Iron Router for routing so you will also need to set that up if you haven't already.
+This package assumes you are using Iron Router for routing so you will also need to set that up if you haven't already.
 
-Next you need to use the 'url-shortener/shorten' method wherever you plan to shorten urls. Let's say you have an input with a class of '.url-to-shorten' on the home page in which users can put a regular url and then when they click a button with a class of '.shorten' the link will be shortened. The code would look like this:
+Next you need to use the 'UrlShortener.shorten()' method wherever you plan to shorten urls. This function takes a url (String) and a callback. Let's say you have an input with a class of '.url-to-shorten' on the home page in which users can put a regular url and then when they click a button with a class of '.shorten' the link will be shortened. The code would look like this:
 
 ```
 Template.Home.events({
   'click .shorten': function(e, tmpl) {
     e.preventDefault();
 
-    // Grab the url from the input it is stored in and put it into
-    // an object to pass in to the url-shortener/shorten method
-    var urlObj = {
-      long_url: $('.url-to-shorten').val()
-    }
+    var url = $('.url-to-shorten').val();
 
-
-    Meteor.call('url-shortener/shorten', urlObj, function(err, res) {
+    UrlShortener.shorten(url, function(err, res) {
       if (err) {
-        throw new Meteor.Error('Bad Url', 'That is a bad url');
+        console.log(err);
       } else {
+        // This isn't required I am just demonstrating that you can set a
+        // session variable to the value of res.path which is useful for
+        // displaying the new short url to the user
+        Session.set('shortUrl', res.path);
+
+        // Clear the input value
         $('.url-to-shorten').val('');
       }
-
     });
 
 
@@ -42,13 +44,41 @@ Template.Home.events({
 });
 ```
 
-This code will validate the entered url, and if it is a valid url, will return a response object with a 'path' property. The 'path' property's value is equal to the short url string created for the regular url (e.g. 'dRcjE'). I generally set a session variable like this in order to display the short url to the user:
+This code will validate the entered url, and if it is a valid url, will return a response object with a 'path' property. The 'path' property value is equal to the full short url that was just created.
+
+The full short url is made up of the following:
 
 ```
-Session.set('shortUrl', Meteor.absoluteUrl() + 's/' + res.path);
+res.path = UrlShortener.options.prefix + 's/' + newPath
 ```
 
-And that should be all you need to get set up! Check the video tutorial [here](http://youtube.com) if you run into any trouble.
+A typical short url with default options will look something like this:
+
+```
+http://your_url/s/rTyud
+```
+
+I have added the "/s/" in there so that it won't catch your other routes. If this proves to be a problem please let me know and I will figure out a way to extend the functionality.
+
+The last thing you will need to do is create a template that the app will redirect to if someone enters a short url route that doesn't exist. This configuration will need to be in the ```lib``` directory.
+
+You set the bad_url option like this:
+
+```
+Meteor.startup(function() {
+  UrlShortener.options.bad_url = "bad-urls";
+});
+```
+
+As you can see, I have set the bad_url option to a string which represents a relative path. The corresponding route would look something like this:
+
+```
+Router.route('/bad-urls', {
+  name: 'BadUrls'
+});
+```
+
+And that should be all you need to get set up! Check the video tutorial [here](https://www.youtube.com/watch?v=fcKAf-di-bA) if you run into any trouble.
 
 ## More Info
 
@@ -65,7 +95,7 @@ UrlShortener = {
 }
 ````
 
-You can customize the options by adding them in a ```Meteor.startup()``` function in the lib folder like so:
+You can customize the options by adding them in a ```Meteor.startup()``` function in the ```lib``` folder like so:
 
 ```
 Meteor.startup(function() {
@@ -74,11 +104,42 @@ Meteor.startup(function() {
 });
 ```
 
-As previously mentioned, this code needs to be in the lib folder (or anywhere other than the client or server folders).
+As previously mentioned, this code needs to be in the ```lib``` folder (or anywhere other than the client or server folders).
+
+You can also query the short_urls collection like this:
+
+```
+UrlShortener.collection.find({});
+```
+
+I have setup a publication that you can subscribe to in order to get all of the short urls. The publication looks like this:
+
+```
+Meteor.publish('shortUrls', function () {
+  return UrlShortener.collection.find({});
+});
+```
+
+I plan to add functionality that allows you to choose whether you'd like the collection automatically published or not. That way you can customize what data a template receives.
+
+### A UrlShortener.collection Document
+
+When created, a document of the UrlShortener.collection will have the following properties:
+
+```
+{
+  long_url: 'http://your_long_url.com/',
+  path: 'eRtjY',
+  createdAt: new Date(),
+  clicks: 0
+}
+```
+
+Every time that a short url is visited, a Meteor method named 'url-shortener/add-click' is called and the 'clicks' property is incremented by 1.
 
 ### The Url
 
-I initially was using ```/:_id``` as the path for redirects but ran into too many problems with it catching other routes so I changed the short url route to ```/s/:_id```. So, if you generate a new short url with a path of 'sXrtf' a user can visit 'http://your_url/s/sXrtf' and they will be redirected to the route this short url points to.
+I initially was using ```/:_id``` as the path for redirects but ran into too many problems with it catching other routes so I changed the short url route to ```/s/:_id```. So, if you generate a new short url with a path of 'sXrtf' a user can visit 'http://your_url/s/sXrtf' and they will be redirected to the link this short url points to.
 
 ### Options
 
@@ -138,4 +199,4 @@ Meteor.startup(function() {
 
 ## Final Words
 
-Please open an issue if you questions or suggestions as to how I can improve the package. Thanks!
+Please open an issue if you have questions or suggestions as to how I can improve the package. Thanks!
