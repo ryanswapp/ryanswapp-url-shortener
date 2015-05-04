@@ -77,7 +77,7 @@ Router.route('/s/:_id', {
         this.response.end();
       } else {
         this.response.writeHead(302, {
-          'Location': UrlShortener.options.prefix + UrlShortener.options.bad_url
+          'Location': Meteor.absoluteUrl() + UrlShortener.options.bad_url
         });
         this.response.end();
       }
